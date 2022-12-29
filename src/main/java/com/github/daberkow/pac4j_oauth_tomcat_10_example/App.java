@@ -3,11 +3,15 @@
  */
 package com.github.daberkow.pac4j_oauth_tomcat_10_example;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class App {
-//    public final static String oauthServer = "http://dev.home.ntbl.co:8080/";
+    private static final Logger logger = LogManager.getLogger(App.class);
+
     public final static String oauthServer = "http://127.0.0.1:8081/";
     public static void main(String[] args) {
-        System.out.println("Starting...");
+        logger.info("Starting...");
         Runnable tomcatRunnable = new TomcatLauncher();
         Thread thread = new Thread(tomcatRunnable);
         tomcatRunnable.run();

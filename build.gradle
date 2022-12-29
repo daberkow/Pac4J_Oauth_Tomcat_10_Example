@@ -1,7 +1,32 @@
+import com.github.jengelman.gradle.plugins.shadow.transformers.Log4j2PluginsCacheFileTransformer
+
 plugins {
-    // Apply the application plugin to add support for building a CLI application in Java.
-    id 'java'
+    id 'application'
+    // To use intellij
     id 'idea'
+    // To make a self contained Jar file
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    // Plugin to check your dependencies are up to date
+    id 'com.github.ben-manes.versions' version '0.44.0'
+}
+
+sourceCompatibility = 17
+targetCompatibility = 17
+
+application {
+    mainClass = 'com.github.daberkow.pac4j_oauth_tomcat_10_example.App'
+}
+
+def isNonStable = { String version ->
+    def stableKeyword = ['RELEASE', 'FINAL', 'GA'].any { it -> version.toUpperCase().contains(it) }
+    def regex = /^[0-9,.v-]+(-r)?$/
+    return !stableKeyword && !(version ==~ regex)
+}
+
+tasks.named("dependencyUpdates").configure {
+    rejectVersionIf {
+        isNonStable(it.candidate.version)
+    }
 }
 
 repositories {
@@ -9,9 +34,14 @@ repositories {
     mavenCentral()
 }
 
+// This is needed or you will fail to parse the log4j2.xml
+shadowJar {
+    transform(Log4j2PluginsCacheFileTransformer)
+}
+
 dependencies {
     // Use JUnit Jupiter for testing.
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.1'
 
     // Log4j for nicer logging
     implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.19.0'
@@ -20,10 +50,10 @@ dependencies {
     implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.19.0'
 
     // Embedded Tomcat
-    implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.0.27'
-    implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '10.0.27'
-    implementation group: 'org.apache.tomcat', name: 'tomcat-jasper-el', version: '10.0.27'
-    implementation group: 'org.apache.tomcat', name: 'tomcat-jsp-api', version: '10.0.27'
+    implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.1.4'
+    implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '10.1.4'
+    implementation group: 'org.apache.tomcat', name: 'tomcat-jasper-el', version: '10.1.4'
+    implementation group: 'org.apache.tomcat', name: 'tomcat-jsp-api', version: '10.1.4'
 
     implementation group: 'org.pac4j', name: 'pac4j-core', version: '5.7.0'
     implementation group: 'org.pac4j', name: 'pac4j-oauth', version: '5.7.0'
@@ -31,6 +61,7 @@ dependencies {
 
     implementation group: 'com.google.code.gson', name: 'gson', version: '2.10'
 
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: '2.0.6'
 }
 
 tasks.named('test') {

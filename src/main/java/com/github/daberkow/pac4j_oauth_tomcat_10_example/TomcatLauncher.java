@@ -19,10 +19,10 @@ public class TomcatLauncher implements Runnable {
     public void run() {
         // https://devcenter.heroku.com/articles/create-a-java-web-application-using-embedded-tomcat
         final Tomcat tomcat = new Tomcat();
-        File tomcatHome = new File( "tmp" + File.separator + "webapps" + File.separator + "tmp");
+        File tomcatHome = new File( "tmp" + File.separator + "webapps");
         logger.info(tomcatHome.getAbsolutePath());
-        if (!tomcatHome.exists()) {
-            tomcatHome.mkdirs();
+        if (!tomcatHome.exists() && !tomcatHome.mkdirs()) {
+            logger.error("Error making working directory for Tomcat");
         }
         tomcat.setBaseDir("tmp");
         tomcat.setPort(8080);
@@ -35,8 +35,8 @@ public class TomcatLauncher implements Runnable {
         errorReportValve.setShowServerInfo(false);
         host.addValve(errorReportValve);
 
-        //Set some custom context information
-        final Context ctx = tomcat.addContext("/", "tmp");
+        // Set some custom context information
+        final Context ctx = tomcat.addContext("/", "");
 
         // More changes pass nessus scans
         // https://github.com/jiaguangzhao/base/blob/905aaf4111f4779e236043ff423951672ade848a/src/main/java/com/example/base/aop/configure/TomcatConfigure.java
@@ -55,6 +55,22 @@ public class TomcatLauncher implements Runnable {
         ctx.addFilterDef(httpHeaderSecurityFilter);
         ctx.addFilterMap(httpHeaderSecurityFilterMap);
 
+        // This is not actually used, but wanted an example of injecting a CSP policy for servlet application
+        // Tomcat 10
+        FilterDef cspFilter = new FilterDef();
+        cspFilter.setFilterName("cspHeaderSecurity");
+        cspFilter.setFilterClass("com.github.daberkow.pac4j_oauth_tomcat_10_example.CSPProtection");
+        cspFilter.addInitParameter("policy", "" +
+                        "frame-src 'self' http://127.0.0.1:8080 http://127.0.0.1:8081; " +
+                        "frame-ancestors 'self' http://127.0.0.1:8080 http://127.0.0.1:8081; object-src 'none';");
+        cspFilter.setAsyncSupported(String.valueOf(Boolean.TRUE));
+        FilterMap cspHeaderSecurityFilterMap = new FilterMap();
+        cspHeaderSecurityFilterMap.setFilterName("cspHeaderSecurity");
+        cspHeaderSecurityFilterMap.addURLPattern("/*");
+        cspHeaderSecurityFilterMap.setDispatcher("REQUEST");
+        ctx.addFilterDef(cspFilter);
+        ctx.addFilterMap(cspHeaderSecurityFilterMap);
+
         // Setup our web servlets
         try {
             final Wrapper webApp = Tomcat.addServlet(ctx,
@@ -63,20 +79,26 @@ public class TomcatLauncher implements Runnable {
             webApp.addInitParameter("passedParam", "Example Data!");
 
             // Init the Oauth Data
-            final Wrapper oauth = Tomcat.addServlet(ctx,
+            Tomcat.addServlet(ctx,
                     "Oauth", "com.github.daberkow.pac4j_oauth_tomcat_10_example.oauth.OauthInit");
-            final Wrapper oauthCallback = Tomcat.addServlet(ctx,
+            Tomcat.addServlet(ctx,
                     "OauthCallback", "com.github.daberkow.pac4j_oauth_tomcat_10_example.oauth.OauthReturn");
+
+            // This is a nice way later for AJAX to get the status of logged-in user
+            Tomcat.addServlet(ctx,
+                    "SessionManager", "com.github.daberkow.pac4j_oauth_tomcat_10_example.SessionManager");
 
             ctx.addServletMappingDecoded("/oauth", "Oauth");
             ctx.addServletMappingDecoded("/oauth/redirect", "OauthCallback");
+            ctx.addServletMappingDecoded("/session/*", "SessionManager");
             ctx.addServletMappingDecoded("/", "WebApp");
 
-            // Tomcat.initWebappDefaults(ctx);
             final Connector setupConnector = tomcat.getConnector();
-
-            setupConnector.setProperty("compression", "0");
             setupConnector.setScheme("http");
+
+            // I included some less used options to be helpful. I usually put a nginx or Apache HTTPD proxy in front of
+            // these services, so I do not init SSL here.
+            // setupConnector.setProperty("compression", "0"); // This if you are doing odd servlet stuff
             // setupConnector.setSecure(true);
             // setupConnector.setAttribute("keyAlias", "tomcat");
             // setupConnector.setAttribute("keystorePass", "palantir");
@@ -84,23 +106,14 @@ public class TomcatLauncher implements Runnable {
             // setupConnector.setAttribute("clientAuth", "false");
             // setupConnector.setAttribute("sslProtocol", "TLS");
             // setupConnector.setAttribute("SSLEnabled", true);
+
+            // Start it up
             tomcat.setConnector(setupConnector);
             tomcat.start();
             logger.trace("Tomcat Started");
+            tomcat.getServer().await();
         } catch (final LifecycleException e1) {
             logger.error("Problem loading Apache Modules", e1);
-        }
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException except) {
-                logger.error("Interrupted", except);
-                try {
-                    tomcat.stop();
-                } catch (LifecycleException e) {
-                    logger.error("Couldnt stop tomcat, cant stop wont stop", e);
-                }
-            }
         }
     }
 }

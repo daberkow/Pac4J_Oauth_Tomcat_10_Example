@@ -14,9 +14,11 @@ import org.pac4j.jee.context.JEEContext;
 import org.pac4j.jee.context.session.JEESessionStoreFactory;
 import org.apache.logging.log4j.Logger;
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.Optional;
+
+/**
+ * Now we have returned from the OAuth server, and need to check the token we got and pull any user info we want.
+ */
 public class OauthReturn extends AbstractAuth {
     private static final Logger logger = LogManager.getLogger(OauthReturn.class);
     @Serial
@@ -30,7 +32,9 @@ public class OauthReturn extends AbstractAuth {
         try {
             credentials = client.getCredentials(context, sessionStore);
         } catch (TechnicalException e) {
-            logger.error("User came with bad credentials to the redirect endpoint.");
+            // 'unauthorized_client' means the clientid and secret between this server and the oauth server do not match
+            // In restarting this Java server you may see "invalid grant", this is left over from the session before
+            logger.error("User came with bad credentials to the redirect endpoint.", e);
             resp.sendRedirect("/oauth");
             return;
         }
@@ -45,45 +49,6 @@ public class OauthReturn extends AbstractAuth {
         String username = profile.get().getId();
         logger.info("Successful login for " + username + " from " + req.getLocalAddr());
         session.setAttribute("user", username);
+        resp.sendRedirect("/");
     }
-//    private String getProfileGroups(String accessToken) {
-//        logger.debug("Pulling user groups");
-//        StringBuilder stringBuilder = new StringBuilder();
-//        //https://rtfm.palantir.build/docs/multipass/develop/api.html
-//        String infoOnMe = getFromMultipassApi("api/me/groups", accessToken);
-//        JsonObject profileData;
-//        try {
-//            profileData = JsonParser.parseString(infoOnMe).getAsJsonObject();
-//            for (JsonElement singleGroup : profileData.get("groups").getAsJsonArray()) {
-//                JsonObject jsonObject = singleGroup.getAsJsonObject();
-//                stringBuilder.append(jsonObject.get("name").getAsString()).append(",");
-//            }
-//        } catch (Throwable e) {
-//            return "";
-//        }
-//        return stringBuilder.toString();
-//    }
-//    private String getFromMultipassApi(String endpoint, String accessToken) {
-//        StringBuilder buffer = new StringBuilder();
-//        try {
-//            URL executingUrl = new URL(Manager.getLocalSettings().getMultipassUrl() + endpoint);
-//            HttpURLConnection connection = (HttpURLConnection) executingUrl.openConnection();
-//            connection.setRequestMethod("GET");
-//            connection.setDoOutput(true);
-//            connection.setRequestProperty("user-agent", "opennetboot-" + Core.ONB_VERSION);
-//            connection.setRequestProperty("Authorization", "Bearer " + accessToken);
-//            connection.setRequestProperty("Content-Type", "application/json");
-//            connection.setRequestProperty("charset", "utf-8");
-//            connection.setUseCaches(false);
-//            InputStream content = connection.getInputStream();
-//            BufferedReader in   = new BufferedReader(new InputStreamReader(content));
-//            String line;
-//            while ((line = in.readLine()) != null) {
-//                buffer.append(line);
-//            }
-//        } catch (Exception e) {
-//            return "";
-//        }
-//        return buffer.toString();
-//    }
 }

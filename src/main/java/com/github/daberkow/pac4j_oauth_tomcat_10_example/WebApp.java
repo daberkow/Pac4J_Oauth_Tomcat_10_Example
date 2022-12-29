@@ -7,23 +7,19 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serial;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.file.Files;
-
 
 @WebServlet(
         name = "RootApp",
         urlPatterns = {"/"}
 )
 public class WebApp extends HttpServlet {
-    private static final Logger logger = LoggerFactory.getLogger(WebApp.class);
+    private static final Logger logger = LogManager.getLogger(WebApp.class);
     @Serial
     private static final long serialVersionUID = 2802147441289972890L;
 
@@ -35,27 +31,27 @@ public class WebApp extends HttpServlet {
 
     @Override
     protected final void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        URL url = this.getClass().getClassLoader().getResource("index.html");
+        logger.info(req.getRequestURI());
+        // For the root of the server we will always return the index, this is not production quality code.
+        final ClassLoader classLoader = getClass().getClassLoader();
+        InputStream inputStream = classLoader.getResourceAsStream("index.html");
 
-        File file = null;
-        String tempStringHolder;
-        try {
-            file = new File(url.toURI());
-            tempStringHolder = Files.readString(file.toPath());
-        } catch (URISyntaxException | IOException e) {
-            resp.sendError(500);
-            throw new RuntimeException(e);
+        String tempStringHolder = new String(inputStream.readAllBytes());
+
+        // Here we know we have some contents. The index page has a variable I will replace to show the user's status
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(tempStringHolder.substring(0, tempStringHolder.indexOf("THIS_SERVER_STATUS")));
+        if (SessionManager.isLoggedIn(req)) {
+            stringBuilder.append("Logged In");
+        } else {
+            stringBuilder.append("NOT Logged In");
         }
+        stringBuilder.append(tempStringHolder.substring(tempStringHolder.indexOf("THIS_SERVER_STATUS") + 18));
 
-        if (tempStringHolder == null) {
-            // We did not hit the catch, but we did not get the contents that were expected for our embedded app.
-            resp.sendError(404);
-        }
-
-        // Here we know we have some contents.
+        // Send the data to the user and close the connection
         resp.setContentType("text/html; charset=utf-8");
         final ServletOutputStream outputStream = resp.getOutputStream();
-        outputStream.println(tempStringHolder);
+        outputStream.println(stringBuilder.toString());
         outputStream.flush();
         outputStream.close();
     }
