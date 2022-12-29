@@ -1,0 +1,39 @@
+plugins {
+    // Apply the application plugin to add support for building a CLI application in Java.
+    id 'java'
+    id 'idea'
+}
+
+repositories {
+    // Use Maven Central for resolving dependencies.
+    mavenCentral()
+}
+
+dependencies {
+    // Use JUnit Jupiter for testing.
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
+
+    // Log4j for nicer logging
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.19.0'
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.19.0'
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-web', version: '2.19.0'
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.19.0'
+
+    // Embedded Tomcat
+    implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.0.27'
+    implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '10.0.27'
+    implementation group: 'org.apache.tomcat', name: 'tomcat-jasper-el', version: '10.0.27'
+    implementation group: 'org.apache.tomcat', name: 'tomcat-jsp-api', version: '10.0.27'
+
+    implementation group: 'org.pac4j', name: 'pac4j-core', version: '5.7.0'
+    implementation group: 'org.pac4j', name: 'pac4j-oauth', version: '5.7.0'
+    implementation group: 'org.pac4j', name: 'pac4j-jakartaee', version: '5.7.0'
+
+    implementation group: 'com.google.code.gson', name: 'gson', version: '2.10'
+
+}
+
+tasks.named('test') {
+    // Use JUnit Platform for unit tests.
+    useJUnitPlatform()
+}
